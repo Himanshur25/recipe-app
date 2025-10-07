@@ -1,16 +1,55 @@
 import { pool } from "../connect";
 
-const getAll = async (filters: any, values: any) => {
-  const sql = `SELECT * FROM recipe${
-    filters.length ? " WHERE " + filters.join(" AND ") : ""
-  }`;
+// Get all recipes with reactions for a specific user
+const getAll = async (filters: any[], values: any[], userId: number) => {
+  let sql = `
+    SELECT 
+      r.id AS recipe_id,
+      r.title,
+      r.instruction,
+      r.ingredient,
+      r.image,
+      r.category,
+      re.reaction,
+      re.user_id AS reacted_user_id,
+      re.created_at AS reaction_created_at,
+      re.updated_at AS reaction_updated_at
+    FROM recipe r
+    LEFT JOIN reactions re 
+      ON r.id = re.recipe_id AND re.user_id = ?
+  `;
 
-  const [rows] = await pool.query(sql, values);
+  // Only add WHERE if there are filters
+  if (filters.length) {
+    sql += " WHERE " + filters.join(" AND ");
+  }
+
+  // Add userId first for LEFT JOIN, then rest for filters
+  const [rows] = await pool.query(sql, [userId, ...values]);
   return rows;
 };
 
-const getSingle = async (id: number) => {
-  const [rows] = await pool.query("SELECT * FROM recipe WHERE id = ?", [id]);
+// Get single recipe with reaction of a specific user
+const getSingle = async (id: number, userId: number) => {
+  const sql = `
+    SELECT 
+      r.id AS recipe_id,
+      r.title,
+      r.instruction,
+      r.ingredient,
+      r.image,
+      r.category,
+      re.reaction,
+      re.user_id AS reacted_user_id,
+      re.created_at AS reaction_created_at,
+      re.updated_at AS reaction_updated_at
+    FROM recipe r
+    LEFT JOIN reactions re 
+      ON r.id = re.recipe_id AND re.user_id = ?
+    WHERE r.id = ?
+  `;
+
+  const [rows] = await pool.query(sql, [userId, id]);
   return (rows as any)[0];
 };
 

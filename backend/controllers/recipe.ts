@@ -4,7 +4,8 @@ import { ApiError, serializeError } from "../utils/error";
 
 const getAll = async (req: Request, res: Response) => {
   try {
-    const allowedColumns = ["category", "title"];
+    const userId = (req as any).user.userId;
+    const allowedColumns = ["category", "title", "reaction"];
     const queryParams = req.query;
 
     const filters: string[] = [];
@@ -15,17 +16,20 @@ const getAll = async (req: Request, res: Response) => {
     Object.entries(queryParams).forEach(([key, value]) => {
       if (allowedColumns.includes(key) && value) {
         if (key === "title") {
-          filters.push(`${key} LIKE ?`);
+          filters.push(`r.${key} LIKE ?`);
           values.push(`%${value}%`);
+        } else if (key === "reaction") {
+          filters.push(`re.${key} = ?`);
+          values.push(value);
         } else {
-          filters.push(`${key} = ?`);
+          filters.push(`r.${key} = ?`);
           values.push(value);
         }
       }
     });
 
-    const rows = await recipeService.getAll(filters, values);
-    res.status(200).json({ recipes: rows });
+    const recipes = await recipeService.getAll(filters, values, userId);
+    res.status(200).json({ recipes });
   } catch (error: any) {
     serializeError(res, error);
   }
@@ -35,7 +39,8 @@ const getSingle = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
-    const recipe = await recipeService.getSingle(Number(id));
+    const userId = (req as any).user.userId;
+    const recipe = await recipeService.getSingle(Number(id), userId);
     if (!recipe) {
       throw new ApiError("Recipe not found", 404);
     }
